@@ -67,6 +67,7 @@ int main()
     //----------------------start assembler pass 2------------------------------
     ifstream fp("intermediate.txt");
     ofstream op("assembler_output.txt");
+    ofstream al("assembly_listing.txt");
     string line;
     vector<string> arr; //to store tokens
     string LOC, LABEL, OPCODE, OPERAND;
@@ -131,6 +132,8 @@ int main()
         {
             filename = LABEL;
             object_code="";
+            al<<line<<" "<<object_code<<"\n";
+
             op<<"H ";
             op<<setw(6)<<setfill(' ')<<std::left<<filename;
             op<<setw(6)<<setfill('0')<<std::right<<LOC<<" ";
@@ -207,12 +210,18 @@ int main()
             }
             if(OPCODE=="RESW" || OPCODE=="RESB")
             {
+                object_code = "";
                 old_loc = LOC;
                 continue;
             }
+
+            al<<line<<" "<<object_code<<"\n";
         }
         if(OPCODE=="END")
         {
+            object_code = "";
+            al<<line<<" "<<object_code<<"\n";
+
             //print the last stored text record
             op<<"T ";
             op<<setw(6)<<setfill('0')<<start_addr<<" ";
@@ -264,6 +273,7 @@ int main()
         old_loc = LOC;
     }
 
+    al.close();
     op.close();
     fp.close();
 
