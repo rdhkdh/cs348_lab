@@ -134,9 +134,9 @@ int main()
             object_code="";
             al<<line<<" "<<object_code<<"\n";
 
-            op<<"H ";
-            op<<setw(6)<<setfill(' ')<<std::left<<filename;
-            op<<setw(6)<<setfill('0')<<std::right<<LOC<<" ";
+            op<<"H^";
+            op<<setw(6)<<setfill(' ')<<std::left<<filename<<"^";
+            op<<setw(6)<<setfill('0')<<std::right<<LOC<<"^";
             op<<setw(6)<<setfill('0')<<std::right<<symtab["prog_size"]; 
             op<<"\n";
 
@@ -223,14 +223,14 @@ int main()
             al<<line<<" "<<object_code<<"\n";
 
             //print the last stored text record
-            op<<"T ";
-            op<<setw(6)<<setfill('0')<<start_addr<<" ";
-            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<" ";
-            for(auto u: obj_codes) {op<<u<<" ";}
+            op<<"T^";
+            op<<setw(6)<<setfill('0')<<start_addr<<"^";
+            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<"^";
+            for(auto u: obj_codes) {op<<u<<"^";}
             op<<"\n";    
 
             //print the ending record
-            op<<"E ";
+            op<<"E^";
             op<<setw(6)<<setfill('0')<<symtab[filename];
             op<<"\n";
             break;
@@ -239,10 +239,10 @@ int main()
         //-------------------------------starting new text records------------------------------------
         if(stoi(LOC,0,16)> stoi(old_loc,0,16)+3)
         { //if there's a big jump in address
-            op<<"T ";
-            op<<setw(6)<<setfill('0')<<start_addr<<" ";
-            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<" ";
-            for(auto u: obj_codes) {op<<u<<" ";}
+            op<<"T^";
+            op<<setw(6)<<setfill('0')<<start_addr<<"^";
+            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<"^";
+            for(auto u: obj_codes) {op<<u<<"^";}
             op<<"\n";
 
             obj_codes.clear();
@@ -260,10 +260,10 @@ int main()
 
         if(obj_codes.size()==10)
         {
-            op<<"T ";
-            op<<setw(6)<<setfill('0')<<start_addr<<" ";
-            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<" ";
-            for(auto u: obj_codes) {op<<u<<" ";}
+            op<<"T^";
+            op<<setw(6)<<setfill('0')<<start_addr<<"^";
+            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<"^";
+            for(auto u: obj_codes) {op<<u<<"^";}
             op<<"\n";
 
             obj_codes.clear();
