@@ -33,4 +33,4 @@ Here RESW, RESB, WORD, BYTE are **Assembler Directives**, hence they are not sto
 
 In pass 1 of the assembler operation, input consisting of 3 columns is taken, namely- LABEL, OPCODE, OPERAND. This information is used to generate the addresses (LOC) for each line. Also the SYMTAB is prepared in this pass by storing labels and the corresponding addresses they refer to. Program size = (LOCCTR - starting address) is also stored in symtab.  
 
-In pass 2 of the assembler operation, input input consisting of 4 columns is taken from the intermediate file, namely- LOC, LABEL, OPCODE, OPERAND. The assembly listing contains the object code corresponding to each line, thus 5 columns- LOC, LABEL, OPCODE, OPERAND, OBJECT_CODE. The assembler output contains Header record, Text records and End record. 
+In pass 2 of the assembler operation, input consisting of 4 columns is taken from the intermediate file, namely- LOC, LABEL, OPCODE, OPERAND. The assembly listing contains the object code corresponding to each line, thus 5 columns- LOC, LABEL, OPCODE, OPERAND, OBJECT_CODE. The assembler output contains Header record, Text records and End record. 
