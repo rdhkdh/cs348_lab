@@ -2,7 +2,7 @@
 #include<bits/stdc++.h>
 using namespace std;
 
-map<string,string> symtab; //symbol table - label, address
+map<string,string> symtab[3]; //symbol table - label, address
 map<string,string> optab; // opern code table- mnemonic, opcode(numeric)
 int LOCCTR=0; //will store the int version of hex address
 
@@ -99,7 +99,7 @@ int main()
     vector<string> arr; // to store tokens
     string LABEL, OPCODE, OPERAND;
     string filename;
-    int i=0, extended=0;
+    int i=0, extended=0, section_no=0;
 
     while(getline(fp, line)) 
     {
@@ -133,7 +133,7 @@ int main()
             OPCODE = arr[0];
             OPERAND = arr[1];
 
-            if(arr[0]=="*") 
+            if(arr[0]=="*" || arr[1]=="CSECT") 
             {
                 LABEL = arr[0];
                 OPCODE = arr[1];
@@ -160,7 +160,7 @@ int main()
         if(OPCODE=="START")
         {
             filename = LABEL;
-            symtab[LABEL] = OPERAND; //here label= name of program, operand= starting address
+            symtab[section_no][LABEL] = OPERAND; //here label= name of program, operand= starting address
             LOCCTR = stoi(OPERAND,0,16); //locctr stores int value of hex address
             op<<setw(4)<<setfill('0')<<OPERAND;
             op<<" "<<LABEL<<" "<<OPCODE<<" "<<OPERAND<<endl;
@@ -170,14 +170,17 @@ int main()
         {
             if(LABEL!="") // if label is not empty
             {
-                if(symtab.find(LABEL)!=symtab.end())
+                if(symtab[section_no].find(LABEL)!=symtab[section_no].end())
                 {
                     cout<<"Error: duplicate label\n";
                     return 0;
                 }
                 else
                 {
-                    symtab[LABEL] = decToHexa(LOCCTR);
+                    if(LABEL!="*")
+                    {
+                        symtab[section_no][LABEL] = decToHexa(LOCCTR);
+                    }
                 }
             }
 
@@ -218,14 +221,15 @@ int main()
             {
                 if(OPERAND!="*") 
                 {
-                    old = stoi(symtab["BUFEND"],nullptr,16) - stoi(symtab["BUFFER"],nullptr,16);
+                    old = stoi(symtab[section_no]["BUFEND"],nullptr,16) - stoi(symtab[section_no]["BUFFER"],nullptr,16);
                 }
                 
             }
             else if(OPCODE=="CSECT")
             {
                 LOCCTR = 0;
-                op<<"0000 "<<line;
+                section_no++;
+                op<<"0000 "<<line<<endl;
                 continue;
             }
             else
@@ -243,8 +247,9 @@ int main()
         
         if(OPCODE=="END")
         {
-            int prog_size = LOCCTR-stoi(symtab[filename],0,16); // 207A-1000= 107A in the given example
-            symtab["prog_size"] = decToHexa(prog_size);
+            // int prog_size = LOCCTR-stoi(symtab[0][filename],0,16); // 207A-1000= 107A in the given example
+            // symtab[section_no]["prog_size"] = decToHexa(prog_size);
+            
             op<<line<<endl; //write last line to intermediate file
         }
     }
@@ -254,18 +259,29 @@ int main()
 
     // print symbol table
     cout<<"\nSYMTAB:\n";
-    for(auto u: symtab)
+    for(int j=0;j<3;j++)
     {
-        cout<<u.first<<" "<<u.second<<endl;
+        cout<<"Section-"<<j<<endl;
+        for(auto u: symtab[j])
+        {
+            cout<<u.first<<" "<<u.second<<endl;
+        }
     }
+    
 
-    // save symbol table in file
-    ofstream xp("symtab.txt");
-    for(auto u: symtab)
+    // save symbol table for each section in separate file
+    for(int j=0;j<3;j++)
     {
-        xp<<u.first<<" "<<u.second<<endl;
+        string temp = "symtab" + j;
+        temp = temp + ".txt";
+        ofstream xp(temp);
+
+        for(auto u: symtab[j])
+        {
+            xp<<u.first<<" "<<u.second<<endl;
+        }
+        xp.close();
     }
-    xp.close();
 
     return 0;
 }
