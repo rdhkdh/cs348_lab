@@ -179,7 +179,8 @@ int main()
                 {
                     if(LABEL!="*")
                     {
-                        symtab[section_no][LABEL] = decToHexa(LOCCTR);
+                        if(OPCODE=="CSECT") {symtab[section_no][LABEL] = "0";}
+                        else{ symtab[section_no][LABEL] = decToHexa(LOCCTR); }
                     }
                 }
             }
@@ -247,9 +248,6 @@ int main()
         
         if(OPCODE=="END")
         {
-            // int prog_size = LOCCTR-stoi(symtab[0][filename],0,16); // 207A-1000= 107A in the given example
-            // symtab[section_no]["prog_size"] = decToHexa(prog_size);
-            
             op<<line<<endl; //write last line to intermediate file
         }
     }
@@ -272,7 +270,7 @@ int main()
     // save symbol table for each section in separate file
     for(int j=0;j<3;j++)
     {
-        string temp = "symtab" + j;
+        string temp = "symtab" + to_string(j);
         temp = temp + ".txt";
         ofstream xp(temp);
 

@@ -3,7 +3,7 @@
 using namespace std;
 #define BASE "2000"
 
-map<string,string> symtab; //symbol table - label, address
+map<string,string> symtab[3]; //symbol table - label, address
 map<string,string> optab; // opern code table- mnemonic, opcode(numeric)
 
 vector<string> tokenize(const string& input) 
@@ -13,6 +13,19 @@ vector<string> tokenize(const string& input)
 
     string token;
     while (getline(iss >> ws, token, ' ')) {
+        tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+vector<string> tokenize2(const string& input, char c) 
+{
+    vector<string> tokens;
+    istringstream iss(input);
+
+    string token;
+    while (getline(iss >> ws, token, c)) {
         tokens.push_back(token);
     }
 
@@ -117,14 +130,20 @@ int main()
     }
     np.close();
 
-    //----------------------get the symtab ready------------------------------
-    ifstream mp("symtab.txt");
-    string label, address;
-    while(mp>>label>>address)
+    //----------------------get the symtabs ready------------------------------
+    for(int i=0;i<3;i++)
     {
-        symtab[label] = address;
+        string t = "symtab";
+        t = t + to_string(i);
+        t += ".txt";
+        ifstream mp(t);
+        string label, address;
+        while(mp>>label>>address)
+        {
+            symtab[i][label] = address;
+        }
+        mp.close();
     }
-    mp.close();
 
     //----------------------start assembler pass 2------------------------------
     ifstream fp("intermediate.txt");
@@ -132,10 +151,11 @@ int main()
     ofstream al("assembly_listing.txt");
     string line;
     vector<string> arr; //to store tokens
+    vector<string> extdef, extref; //store external refernces and definitions for the section
     string LOC, LABEL, OPCODE, OPERAND;
-    int i=0, byte_length=0, extended=0;
+    int i=0, byte_length=0, extended=0, section_no=0;
     string object_code="", addr1="", addr2="";
-    vector<string> obj_codes;
+    vector<string> obj_codes, modif_records;
     string start_addr, old_loc="0", filename;
 
     while(getline(fp,line))
@@ -153,7 +173,28 @@ int main()
         for(auto u: arr) {cout<<u<<" ";}
         cout<<endl;
 
-        if(arr[0]==".") {continue;} //if line read is a comment
+        if(arr[0]=="." || arr[0]=="EXTDEF" || arr[0]=="EXTREF" || arr[0]=="LTORG") 
+        { //if line read is a comment
+            al<<line<<endl;
+            if(arr[0]=="EXTDEF")
+            {
+                extdef = tokenize2(arr[1],',');
+                op<<"D^";  //write define record in output file
+                for(auto k: extdef)
+                {
+                    op<<k<<"^"<<symtab[section_no][k];
+                }
+                op<<"\n";
+            }
+            if(arr[0]=="EXTREF")
+            {
+                extref = tokenize2(arr[1],',');
+                op<<"R^"; //write refer record in output file
+                for(auto k: extref) { op<<k<<"^"; }
+                op<<"\n";
+            }
+            continue;
+        } 
 
         i = arr.size();
         if(i>4) {
@@ -170,6 +211,13 @@ int main()
             LOC = arr[0];
             OPCODE = arr[1];
             OPERAND = arr[2];
+            if(arr[1]=="*" || arr[2]=="CSECT") 
+            {
+                LOC = arr[0];
+                LABEL = arr[1];
+                OPCODE = arr[2];
+                OPERAND = "";
+            }
         }
         else if(i==4)
         {
@@ -194,8 +242,17 @@ int main()
         {
             extended=1;
             OPCODE = OPCODE.substr(1); //remove 1st char
-            
+
+            //store modification record:
+            string temp="";
+            temp += "M^00";
+            temp += decToHexa( stoi(LOC,nullptr,16) + 1 );
+            temp += "^05^+";
+            if(OPERAND.back()=='X') { temp += OPERAND.substr(0,OPERAND.size()-2); }
+            else{temp += OPERAND;}
+            modif_records.push_back(temp);
         }
+    
     
         //------------------------parse the loc, label, opcode, operand--------------------------
         if(OPCODE=="START")
@@ -207,31 +264,53 @@ int main()
             op<<"H^";
             op<<setw(6)<<setfill(' ')<<std::left<<filename<<"^";
             op<<setw(6)<<setfill('0')<<std::right<<LOC<<"^";
-            op<<setw(6)<<setfill('0')<<std::right<<symtab["prog_size"]; 
+            op<<setw(6)<<setfill('0')<<std::right<<"ps"; //program size for each section 
             op<<"\n";
 
             old_loc = LOC;
             continue;
         }
-        if(OPCODE!="END" && OPCODE!="START")
+        if(OPCODE!="END" && OPCODE!="START" && OPCODE!="CSECT")
         {
             if(byte_length==0) {start_addr = LOC;}
 
             //-----------------------opcodes which are NOT assembler directives-------------------
             if(optab.find(OPCODE)!=optab.end())
             {
-                if(extended==0) {addr1 = extended_format(OPCODE,OPERAND);}
+                addr1 = extended_format(OPCODE,OPERAND);
                 if(OPERAND!="")
                 {
                     if(OPERAND[0]=='#')
                     {
                         OPERAND = OPERAND.substr(1); //remove 1st char
                         int remaining = 4 - OPERAND.length();
-                        while(remaining>0)
+                        for(int i=1; i<=remaining; i++)
                         {
                             addr2 = '0' + addr2;
+                            
                         }
                         addr2 = addr2 + OPERAND;
+                    }
+                    else if(OPERAND=="=C'EOF'" || OPERAND=="=X'05'")
+                    {
+                        addr2 = "XXXX";
+                    }
+                    else if(OPCODE=="CLEAR")
+                    {
+                        addr1 = optab[OPCODE];
+                        if(OPERAND=="X") {addr2 = "10";}
+                        else if(OPERAND=="A") {addr2 = "00";}
+                        else if(OPERAND=="S") {addr2 = "40";}
+                    }
+                    else if(OPERAND=="A,S")
+                    {
+                        addr1 = optab[OPCODE];
+                        addr2 = "04";
+                    }
+                    else if(OPERAND=="T")
+                    {
+                        addr1 = optab[OPCODE];
+                        addr2 = "50";
                     }
                     else
                     {
@@ -245,17 +324,18 @@ int main()
                         }
 
                         //lookup operand
-                        if(symtab.find(OPERAND)!=symtab.end())
+                        int f=0;
+                        for(int i=0;i<3;i++)
                         {
-                            int x = stoi(symtab[OPERAND], nullptr, 16) + stoi(BASE, nullptr, 16);
-                            addr2 = decToHexa(x);
+                            if(symtab[i].find(OPERAND)!=symtab[i].end())
+                            {
+                                int x = stoi(symtab[i][OPERAND], nullptr, 16) + stoi(BASE, nullptr, 16);
+                                addr2 = decToHexa(x);
+                                f=1;
+                                break;
+                            }
                         }
-                        else
-                        {
-                            addr2 = "0";
-                            cout<<"Error: undefined symbol.\n";
-                            return 0;
-                        }
+                        if(f==0) {cout<<"Error: undefined symbol.\n"; return 0;}
                     }
                 }
                 else
@@ -297,7 +377,26 @@ int main()
             }
             if(OPCODE=="WORD")
             {
-                string str = decToHexa(stoi(OPERAND));
+                string str;
+                if(OPERAND=="BUFEND-BUFFER") 
+                { 
+                    str="";
+                    //store modification record:
+                    string temp="";
+                    temp += "M^00";
+                    temp += decToHexa( stoi(LOC,nullptr,16) + 1 );
+                    temp += "^06^+";
+                    temp += OPERAND.substr(0,6);
+                    modif_records.push_back(temp);
+
+                    temp = "M^00";
+                    temp += decToHexa( stoi(LOC,nullptr,16) + 1 );
+                    temp += "^06^-";
+                    temp += OPERAND.substr(7,6);
+                    modif_records.push_back(temp);
+                }
+                else{ str = decToHexa(stoi(OPERAND)); }
+                
                 if(str.length()<6) //object_code might be shorter than 6 places
                 {
                     int n = 6-str.length();
@@ -312,8 +411,11 @@ int main()
             {
                 object_code = "";
                 old_loc = LOC;
+                al<<line<<" "<<object_code<<"\n";
                 continue;
             }
+            if(OPCODE=="=C'EOF'") { object_code= "454F46"; }
+            if(OPCODE=="=X'05'") {object_code = "05";}
 
             al<<line<<" "<<object_code<<"\n";
         }
@@ -329,11 +431,51 @@ int main()
             for(auto u: obj_codes) {op<<u<<"^";}
             op<<"\n";    
 
+            //print modification records
+            for(auto k: modif_records)
+            {op<<k<<"\n";}
+            modif_records.clear();
+
             //print the ending record
-            op<<"E^";
-            op<<setw(6)<<setfill('0')<<symtab[filename];
-            op<<"\n";
+            op<<"E\n";
             break;
+        }
+        if(OPCODE=="CSECT")
+        {
+            //print the last stored text record
+            op<<"T^";
+            op<<setw(6)<<setfill('0')<<start_addr<<"^";
+            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<"^";
+            for(auto u: obj_codes) {op<<u<<"^";}
+            op<<"\n";
+
+            //print modification records
+            for(auto k: modif_records)
+            {op<<k<<"\n";}
+            modif_records.clear();
+
+            //mark the end of the section
+            if(section_no==0) 
+            {
+                op<<"E^"<<setw(6)<<setfill('0')<<symtab[0]["FIRST"]<<endl;
+                op<<"\n";
+            }
+            else { op<<"E\n\n"; }
+
+            //start a new section
+            section_no++;
+            filename = LABEL;
+            object_code="";
+            al<<line<<" "<<object_code<<"\n";
+
+            op<<"H^";
+            op<<setw(6)<<setfill(' ')<<std::left<<filename<<"^";
+            op<<setw(6)<<setfill('0')<<std::right<<LOC<<"^";
+            op<<setw(6)<<setfill('0')<<std::right<<"ps"; //program size for each section 
+            op<<"\n";
+
+            old_loc = LOC;
+            continue;
         }
         
         //-------------------------------starting new text records------------------------------------
