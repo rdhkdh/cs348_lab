@@ -1,43 +1,9 @@
-/*
-Assignment 2
-Implementation of Programming Languages Lab
-Linking Loader
-
-Name:    Vaibhav Kumar Singh
-Roll No: 180101086
-
-INSTRUCTIONS FOR RUNNING THE CODE
----------------------------------
-1. The environment required for running the code is
-					Linux g++
-2. Open the terminal and navigate to the directory where
-   the contents of this zip file have been extracted.
-3. For compilation, type
-				g++ linking_loader.cpp
-4. To run the file, type
-				./a.out <name_of_assembler_intermediate_file> <name_of_assembler_output_file>
-   Providing <name_of_assembler_intermediate_file> and <name_of_assembler_output_file> is optional.
-   If no command line argument is provided, the default filenames ("assembler_intermediate.txt" and "assembler_output.txt") are used.
-   Example:
-			1) ./a.out intermediate.txt output.txt
-			2) ./a.out
-			In the first scenario, the assembler will assume
-                            assembler intermediate filename to be "intermediate.txt"
-                            assembler output filename to be "output.txt"
-			In the second scenario, the assembler will assume
-                            assembler intermediate filename to be "assembler_intermediate.txt"
-                            assembler output filename to be "assembler_output.txt"
-*/
-
+// Ridhiman DHindsa, 210101088
 #include<bits/stdc++.h>
-
 using namespace std;
 
-//used for storing pairs of addresses of EXTDEF symbols and section names
-map<string,string> ESTAB;
-
-//name of assembler intermediate file (assembler_intermediate.txt by default)
-string assembler_intermediate_filename = "assembler_intermediate.txt";
+map<string,string> ESTAB; //external symbol table - extdef symbol, secn name
+string intermediate = "assembler_intermediate.txt";
 
 //name of assembler output file (assembler_output.txt by default)
 string assembler_output_filename = "assembler_output.txt";
@@ -342,16 +308,16 @@ void handle_collision(string& filename){
 
 int main(int argc, char* argv[]){
 	if(argc >= 3){
-        assembler_intermediate_filename = argv[1];
+        intermediate = argv[1];
         assembler_output_filename = argv[2];
-        handle_collision(assembler_intermediate_filename);
+        handle_collision(intermediate);
         handle_collision(assembler_output_filename);
-        cout<<"Using specified assembler intermediate filename: "<<assembler_intermediate_filename<<"\n";
+        cout<<"Using specified assembler intermediate filename: "<<intermediate<<"\n";
         cout<<"Using specified assembler output filename: "<<assembler_output_filename<<"\n";
     }
     else{
         cout<<"Filenames of assembler intermediate and assembler output files not specified\n";
-        cout<<"Using default assembler intermediate filename: "<<assembler_intermediate_filename<<"\n";
+        cout<<"Using default assembler intermediate filename: "<<intermediate<<"\n";
         cout<<"Using default assembler output filename: "<<assembler_output_filename<<"\n";
     }
 
@@ -556,9 +522,9 @@ int main(int argc, char* argv[]){
 	//PASS 2 ENDS
 
     //Writing all the opcodes to the output file
-	fin.open(assembler_intermediate_filename);
+	fin.open(intermediate);
 	if(!fin){
-        handle_file_error(1, assembler_intermediate_filename);
+        handle_file_error(1, intermediate);
 	}
 	fout.open("linking_loader_output.txt");
 	if(!fout){
