@@ -180,6 +180,7 @@ int main()
                     if(LABEL!="*")
                     {
                         if(OPCODE=="CSECT") {symtab[section_no][LABEL] = "0";}
+                        else if(LABEL=="RETADR") {symtab[section_no][LABEL] = decToHexa(LOCCTR-3);}
                         else{ symtab[section_no][LABEL] = decToHexa(LOCCTR); }
                     }
                 }

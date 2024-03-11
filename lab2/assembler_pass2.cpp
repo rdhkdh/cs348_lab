@@ -66,20 +66,29 @@ string hexToBinary(string input)
   unsigned int x =  stoul(input, nullptr, 16) ;
 
   /*Using bitset<16>(x).to_string() to get the binary String of given integer*/
-  string result = bitset<16>(x).to_string(); 
+  string result = bitset<8>(x).to_string(); 
 
   return result;
 }
 
+string format_string(string str, int width, char c = ' ')
+{
+	stringstream temp;
+	temp<<right<<setfill(c)<<setw(width)<<str;
+	return temp.str();
+}
+
 //convert the conventional 8bit opcode to 12bit extended opcode
-string extended_format(string OPCODE, string OPERAND)
+string extended_format(string OPCODE, string OPERAND, int extended)
 {
     string object_code;
-    if(OPCODE[0]=='+') //extended instr
+    if(extended==1) //extended instr
     {
-        string op_val = optab[OPCODE.substr(1)]; //remove the initial + and find opcode value from symtab
+        string op_val = optab[OPCODE]; //find opcode value from symtab
         string bin = hexToBinary(op_val); //convert to binary
+        cout<<bin<<endl; //debugging
         bin = bin.substr(0, 6); //remove last 2 chars
+        cout<<bin<<endl; //debugging
 
         //determine flag bits
         string flag_bits="";
@@ -92,9 +101,11 @@ string extended_format(string OPCODE, string OPERAND)
         }
 
         string temp = bin + flag_bits;
+        cout<<temp<<endl; //debugging
         
         //stoi converts temp from binary to decimal, then we convert decimal to hexa
         object_code = decToHexa(stoi(temp, nullptr, 2));
+        cout<<object_code<<endl; //debugging
     }
     else // PC relative addressing
     {
@@ -179,18 +190,18 @@ int main()
             if(arr[0]=="EXTDEF")
             {
                 extdef = tokenize2(arr[1],',');
-                op<<"D^";  //write define record in output file
+                op<<"D";  //write define record in output file
                 for(auto k: extdef)
                 {
-                    op<<k<<"^"<<symtab[section_no][k];
+                    op<<k<<symtab[section_no][k];
                 }
                 op<<"\n";
             }
             if(arr[0]=="EXTREF")
             {
                 extref = tokenize2(arr[1],',');
-                op<<"R^"; //write refer record in output file
-                for(auto k: extref) { op<<k<<"^"; }
+                op<<"R"; //write refer record in output file
+                for(auto k: extref) { op<<k; }
                 op<<"\n";
             }
             continue;
@@ -245,9 +256,9 @@ int main()
 
             //store modification record:
             string temp="";
-            temp += "M^00";
+            temp += "M00";
             temp += decToHexa( stoi(LOC,nullptr,16) + 1 );
-            temp += "^05^+";
+            temp += "05+";
             if(OPERAND.back()=='X') { temp += OPERAND.substr(0,OPERAND.size()-2); }
             else{temp += OPERAND;}
             modif_records.push_back(temp);
@@ -261,9 +272,9 @@ int main()
             object_code="";
             al<<line<<" "<<object_code<<"\n";
 
-            op<<"H^";
-            op<<setw(6)<<setfill(' ')<<std::left<<filename<<"^";
-            op<<setw(6)<<setfill('0')<<std::right<<LOC<<"^";
+            op<<"H";
+            op<<setw(6)<<setfill(' ')<<std::left<<filename;
+            op<<setw(6)<<setfill('0')<<std::right<<LOC;
             op<<setw(6)<<setfill('0')<<std::right<<"ps"; //program size for each section 
             op<<"\n";
 
@@ -277,7 +288,8 @@ int main()
             //-----------------------opcodes which are NOT assembler directives-------------------
             if(optab.find(OPCODE)!=optab.end())
             {
-                addr1 = extended_format(OPCODE,OPERAND);
+                addr1 = extended_format(OPCODE,OPERAND,extended);
+                cout<<addr1<<endl; //debugging
                 if(OPERAND!="")
                 {
                     if(OPERAND[0]=='#')
@@ -291,9 +303,13 @@ int main()
                         }
                         addr2 = addr2 + OPERAND;
                     }
-                    else if(OPERAND=="=C'EOF'" || OPERAND=="=X'05'")
+                    else if(OPERAND=="=C'EOF'")
                     {
-                        addr2 = "XXXX";
+                        addr2 = "2016";
+                    }
+                    else if(OPERAND=="=X'05'")
+                    {
+                        addr2 = to_string(2000+18 - stoi(LOC));
                     }
                     else if(OPCODE=="CLEAR")
                     {
@@ -314,13 +330,15 @@ int main()
                     }
                     else
                     {
+                        int at=0;
                         if(OPERAND.back()=='X')
                         {
                             OPERAND = OPERAND.substr(0, OPERAND.length()-2);
                         }
                         if(OPERAND[0]=='@')
                         {
-                            OPERAND = OPERAND.substr(1);
+                            at=1;
+                            OPERAND= OPERAND.substr(1);
                         }
 
                         //lookup operand
@@ -336,6 +354,11 @@ int main()
                             }
                         }
                         if(f==0) {cout<<"Error: undefined symbol.\n"; return 0;}
+
+                        if(at==1)
+                        {
+                            addr2 = BASE;
+                        }
                     }
                 }
                 else
@@ -348,12 +371,7 @@ int main()
             if(extended==0) {object_code = addr1 + addr2;}
             else if(extended==1)
             {
-                int remaining = 5 - addr2.length();
-                while(remaining>0)
-                {
-                    addr1 = '0' + addr1; //add the reqd no of 0s in the starting
-                    remaining--;
-                }
+                addr2 = "00000"; //assembler leaves the field blank, for linker to link addr
                 object_code = addr1 + addr2;
             }
 
@@ -383,15 +401,15 @@ int main()
                     str="";
                     //store modification record:
                     string temp="";
-                    temp += "M^00";
+                    temp += "M00";
                     temp += decToHexa( stoi(LOC,nullptr,16) + 1 );
-                    temp += "^06^+";
+                    temp += "06+";
                     temp += OPERAND.substr(0,6);
                     modif_records.push_back(temp);
 
-                    temp = "M^00";
+                    temp = "M00";
                     temp += decToHexa( stoi(LOC,nullptr,16) + 1 );
-                    temp += "^06^-";
+                    temp += "06-";
                     temp += OPERAND.substr(7,6);
                     modif_records.push_back(temp);
                 }
@@ -417,7 +435,10 @@ int main()
             if(OPCODE=="=C'EOF'") { object_code= "454F46"; }
             if(OPCODE=="=X'05'") {object_code = "05";}
 
-            al<<line<<" "<<object_code<<"\n";
+            if(object_code=="") {al<<line<<" "<<object_code<<"\n";}
+            else{
+                al<<line<<" "<<format_string(object_code,6,'0')<<"\n";
+            }
         }
         if(OPCODE=="END")
         {
@@ -425,10 +446,10 @@ int main()
             al<<line<<" "<<object_code<<"\n";
 
             //print the last stored text record
-            op<<"T^";
-            op<<setw(6)<<setfill('0')<<start_addr<<"^";
-            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<"^";
-            for(auto u: obj_codes) {op<<u<<"^";}
+            op<<"T";
+            op<<setw(6)<<setfill('0')<<start_addr;
+            op<<setw(2)<<setfill('0')<<decToHexa(byte_length);
+            for(auto u: obj_codes) {op<<u;}
             op<<"\n";    
 
             //print modification records
@@ -443,10 +464,10 @@ int main()
         if(OPCODE=="CSECT")
         {
             //print the last stored text record
-            op<<"T^";
-            op<<setw(6)<<setfill('0')<<start_addr<<"^";
-            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<"^";
-            for(auto u: obj_codes) {op<<u<<"^";}
+            op<<"T";
+            op<<setw(6)<<setfill('0')<<start_addr;
+            op<<setw(2)<<setfill('0')<<decToHexa(byte_length);
+            for(auto u: obj_codes) {op<<u;}
             op<<"\n";
 
             //print modification records
@@ -457,7 +478,7 @@ int main()
             //mark the end of the section
             if(section_no==0) 
             {
-                op<<"E^"<<setw(6)<<setfill('0')<<symtab[0]["FIRST"]<<endl;
+                op<<"E"<<setw(6)<<setfill('0')<<symtab[0]["FIRST"]<<endl;
                 op<<"\n";
             }
             else { op<<"E\n\n"; }
@@ -468,9 +489,9 @@ int main()
             object_code="";
             al<<line<<" "<<object_code<<"\n";
 
-            op<<"H^";
-            op<<setw(6)<<setfill(' ')<<std::left<<filename<<"^";
-            op<<setw(6)<<setfill('0')<<std::right<<LOC<<"^";
+            op<<"H";
+            op<<setw(6)<<setfill(' ')<<std::left<<filename;
+            op<<setw(6)<<setfill('0')<<std::right<<LOC;
             op<<setw(6)<<setfill('0')<<std::right<<"ps"; //program size for each section 
             op<<"\n";
 
@@ -481,10 +502,10 @@ int main()
         //-------------------------------starting new text records------------------------------------
         if(stoi(LOC,0,16)> stoi(old_loc,0,16)+3)
         { //if there's a big jump in address
-            op<<"T^";
-            op<<setw(6)<<setfill('0')<<start_addr<<"^";
-            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<"^";
-            for(auto u: obj_codes) {op<<u<<"^";}
+            op<<"T";
+            op<<setw(6)<<setfill('0')<<start_addr;
+            op<<setw(2)<<setfill('0')<<decToHexa(byte_length);
+            for(auto u: obj_codes) {op<<u;}
             op<<"\n";
 
             obj_codes.clear();
@@ -502,10 +523,10 @@ int main()
 
         if(obj_codes.size()==10)
         {
-            op<<"T^";
-            op<<setw(6)<<setfill('0')<<start_addr<<"^";
-            op<<setw(2)<<setfill('0')<<decToHexa(byte_length)<<"^";
-            for(auto u: obj_codes) {op<<u<<"^";}
+            op<<"T";
+            op<<setw(6)<<setfill('0')<<start_addr;
+            op<<setw(2)<<setfill('0')<<decToHexa(byte_length);
+            for(auto u: obj_codes) {op<<u;}
             op<<"\n";
 
             obj_codes.clear();
