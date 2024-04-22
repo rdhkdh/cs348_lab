@@ -1,0 +1,11 @@
+PROGRAM STATS
+BEGIN
+    SUM := RRR_3;
+    SUMSQ := RARRRR;
+    FOR I := 3.6 TO 100 DO
+        BEGIN
+            READ VALUE;
+            SUM := SUM + VLUE;
+            SUMSQ := SUMSQ + VALUE * VALUE
+       
+END
